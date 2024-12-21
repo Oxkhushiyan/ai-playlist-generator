@@ -1,75 +1,86 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { FaMicrophone, FaStop, FaSpotify } from 'react-icons/fa';
-
-const SAMPLE_SENTENCES = [
-  "The sun is shining brightly today.",
-  "I love spending time with my friends.",
-  "Music always makes me feel better.",
-  "Life is full of beautiful moments.",
-  "The world is full of endless possibilities."
-];
+import { FaCamera, FaSpotify } from 'react-icons/fa';
+import { analyzeEmotions } from '../../utils/gemini';
 
 interface EmotionData {
-  joy: number;
-  sadness: number;
-  anger: number;
-  fear: number;
-  surprise: number;
+  Anger: number;
+  Anxiety: number;
+  Awe: number;
+  Bored: number;
+  Calm: number;
+  Confusion: number;
+  Disgust: number;
+  Excitement: number;
+  Fear: number;
+  Horror: number;
+  Joy: number;
+  Nostalgia: number;
+  Relief: number;
+  Sad: number;
+  Satisfaction: number;
+  Surprise: number;
 }
 
 export default function CreatePlaylist() {
-  const [isRecording, setIsRecording] = useState(false);
+  const [isCapturing, setIsCapturing] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [emotionData, setEmotionData] = useState<EmotionData | null>(null);
   const [playlistLink, setPlaylistLink] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const playlistSectionRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  const mediaRecorder = useRef<MediaRecorder | null>(null);
-  const audioChunks = useRef<Blob[]>([]);
-
-  const startRecording = async () => {
+  const captureImages = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorder.current = new MediaRecorder(stream);
-      
-      mediaRecorder.current.ondataavailable = (event) => {
-        audioChunks.current.push(event.data);
-      };
+      setIsCapturing(true);
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
 
-      mediaRecorder.current.onstop = async () => {
-        const audioBlob = new Blob(audioChunks.current, { type: 'audio/wav' });
-        audioChunks.current = [];
-        
-        setIsProcessing(true);
-        // Simulate processing delay - change this value to adjust processing time (in milliseconds)
-        await new Promise(resolve => setTimeout(resolve, 10000));
+      // Wait for video to be ready
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      const images: string[] = [];
+      for (let i = 0; i < 3; i++) {
+        if (videoRef.current && canvasRef.current) {
+          canvasRef.current.width = videoRef.current.videoWidth;
+          canvasRef.current.height = videoRef.current.videoHeight;
+          const ctx = canvasRef.current.getContext('2d');
+          ctx?.drawImage(videoRef.current, 0, 0);
+          const imageData = canvasRef.current.toDataURL('image/jpeg');
+          images.push(imageData);
+          await new Promise((resolve) => setTimeout(resolve, 500)); // Wait between captures
+        }
+      }
+
+      // Stop the camera
+      stream.getTracks().forEach(track => track.stop());
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+      }
+      setIsCapturing(false);
+      setIsProcessing(true);
+
+      try {
+        // Send images to Gemini API for analysis
+        const emotionResults = await analyzeEmotions(images);
+        setEmotionData(emotionResults);
+      } catch (error) {
+        console.error('Error analyzing emotions:', error);
+        alert('Failed to analyze emotions. Please try again.');
+      } finally {
         setIsProcessing(false);
-        
-        // Simulate emotion data
-        setEmotionData({
-          joy: Math.random() * 0.8 + 0.2,
-          sadness: Math.random() * 0.6,
-          anger: Math.random() * 0.4,
-          fear: Math.random() * 0.3,
-          surprise: Math.random() * 0.5
-        });
-      };
+      }
 
-      mediaRecorder.current.start();
-      setIsRecording(true);
     } catch (error) {
-      console.error('Error accessing microphone:', error);
-    }
-  };
-
-  const stopRecording = () => {
-    if (mediaRecorder.current && mediaRecorder.current.state !== 'inactive') {
-      mediaRecorder.current.stop();
-      mediaRecorder.current.stream.getTracks().forEach(track => track.stop());
-      setIsRecording(false);
+      console.error('Error accessing camera:', error);
+      setIsCapturing(false);
+      setIsProcessing(false);
     }
   };
 
@@ -89,43 +100,39 @@ export default function CreatePlaylist() {
       <div className="w-full bg-gradient-to-r from-indigo-600 via-pink-500 to-purple-600 h-2" />
       
       <div className="max-w-4xl mx-auto px-4 py-8">
-        {/* Audio Recording Section */}
+        {/* Hidden video and canvas elements */}
+        <video ref={videoRef} style={{ display: 'none' }} />
+        <canvas ref={canvasRef} style={{ display: 'none' }} />
+
+        {/* Emotion Capture Section */}
         <section className="mb-12">
           <h2 className="text-3xl font-bold mb-6 bg-gradient-to-r from-indigo-600 via-pink-500 to-purple-600 bg-clip-text text-transparent">
-            Record Your Voice
+            Capture Your Mood
           </h2>
           <div className="bg-gray-50 rounded-lg p-6 shadow-lg">
             <div className="text-center">
               <p className="text-lg mb-6 text-gray-700">
-                Please read the following sentence:
-              </p>
-              <p className="text-xl font-medium mb-8 text-gray-900">
-                "{SAMPLE_SENTENCES[Math.floor(Math.random() * SAMPLE_SENTENCES.length)]}"
+                Click the button below to capture your mood through facial expressions
               </p>
               
               <div className="flex justify-center mb-4">
-                {!isRecording ? (
-                  <button
-                    onClick={startRecording}
-                    className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 transition-colors"
-                  >
-                    <FaMicrophone />
-                    Start Recording
-                  </button>
-                ) : (
-                  <button
-                    onClick={stopRecording}
-                    className="flex items-center gap-2 px-6 py-3 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors"
-                  >
-                    <FaStop />
-                    Stop Recording
-                  </button>
-                )}
+                <button
+                  onClick={captureImages}
+                  disabled={isCapturing || isProcessing}
+                  className={`flex items-center gap-2 px-6 py-3 ${
+                    isCapturing || isProcessing
+                      ? 'bg-gray-400'
+                      : 'bg-indigo-600 hover:bg-indigo-700'
+                  } text-white rounded-full transition-colors`}
+                >
+                  <FaCamera />
+                  {isCapturing ? 'Capturing...' : isProcessing ? 'Processing...' : 'Capture Mood'}
+                </button>
               </div>
               
               {isProcessing && (
                 <div className="mt-4 text-gray-600">
-                  Processing<span className="loading-dots"></span>
+                  Detecting emotions<span className="loading-dots"></span>
                 </div>
               )}
             </div>
@@ -141,6 +148,7 @@ export default function CreatePlaylist() {
             <div className="bg-gray-50 rounded-lg p-6 shadow-lg">
               <div className="w-full">
                 {Object.entries(emotionData)
+                  .filter(([_, value]) => value > 0) // Filter out emotions with 0%
                   .sort((a, b) => b[1] - a[1])
                   .map(([emotion, value]) => (
                     <div key={emotion} className="mb-4">
@@ -150,13 +158,7 @@ export default function CreatePlaylist() {
                       </div>
                       <div className="h-4 bg-gray-200 rounded-full overflow-hidden">
                         <div
-                          className={`h-full rounded-full emotion-bar ${
-                            emotion === 'joy' ? 'bg-yellow-500' :
-                            emotion === 'sadness' ? 'bg-blue-500' :
-                            emotion === 'anger' ? 'bg-red-500' :
-                            emotion === 'fear' ? 'bg-purple-500' :
-                            'bg-green-500'
-                          }`}
+                          className={`h-full rounded-full emotion-bar bg-gradient-to-r from-indigo-600 via-pink-500 to-purple-600`}
                           style={{ '--target-width': `${value * 100}%` } as { [key: string]: string }}
                         />
                       </div>
