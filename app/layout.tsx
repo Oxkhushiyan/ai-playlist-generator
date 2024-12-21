@@ -1,25 +1,13 @@
 import './globals.css'
-import type { Metadata, Viewport } from 'next'
-import { Inter, Darker_Grotesque } from 'next/font/google'
+import type { Metadata } from 'next'
+import { Inter } from 'next/font/google'
+import { Providers } from './providers'
 
 const inter = Inter({ subsets: ['latin'] })
-const darkerGrotesque = Darker_Grotesque({
-  weight: ['800'],
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--font-darker',
-})
 
 export const metadata: Metadata = {
-  title: 'MusicAI - AI-Powered Playlist Generator',
-  description: 'Create emotion-driven, personalized playlists using artificial intelligence',
-  keywords: 'music, AI, playlist, generator, personalized music, emotion-based playlists',
-  authors: [{ name: 'Your Name' }],
-}
-
-export const viewport: Viewport = {
-  width: 'device-width',
-  initialScale: 1.0,
+  title: 'AI Playlist Generator',
+  description: 'Generate Spotify playlists based on your emotions',
 }
 
 export default function RootLayout({
@@ -29,7 +17,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${inter.className} ${darkerGrotesque.variable}`}>{children}</body>
+      <body className={inter.className}>
+        <Providers>
+          {children}
+        </Providers>
+      </body>
     </html>
   )
 }

@@ -22,19 +22,19 @@ export default function HeroSection() {
       </div>
       
       {/* Content */}
-      <h1 className="text-6xl md:text-8xl mb-4 space-y-2 z-10 title-font">
+      <h1 className="text-4xl md:text-7xl mb-4 space-y-2 z-10 title-font">
         <div className="overflow-hidden">
-          <span className="inline-block transform hover:scale-105 transition-all duration-300 blur-in-text">
+          <span className="inline-block transform hover:scale-105 transition-all duration-700 ease-out blur-in-text">
             EMOTION-DRIVEN
           </span>
         </div>
         <div className="overflow-hidden">
-          <span className="inline-block transform hover:scale-105 transition-all duration-300 blur-in-text">
+          <span className="inline-block transform hover:scale-105 transition-all duration-700 ease-out blur-in-text animation-delay-300">
             AI MUSIC RECOMMENDER
           </span>
         </div>
       </h1>
-      <p className="font-sans text-2xl md:text-3xl mb-8 text-gray-700 font-semibold max-w-2xl animate-fade-in delay-500 hover:text-indigo-600 transition-colors duration-300 tracking-wide">
+      <p className="font-sans text-xl md:text-3xl mb-8 text-gray-700 font-semibold max-w-2xl animate-fade-in delay-700 hover:text-indigo-600 transition-colors duration-500 tracking-wide">
         PERSONALIZED PLAYLISTS FOR EVERY MOOD
       </p>
       <div className="animate-fade-in delay-700">

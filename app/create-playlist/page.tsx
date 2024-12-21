@@ -3,6 +3,9 @@
 import { useState, useRef, useEffect } from 'react';
 import { FaCamera, FaSpotify } from 'react-icons/fa';
 import { analyzeEmotions } from '../../utils/gemini';
+import { createEmotionBasedPlaylist } from '../../utils/spotify';
+import { signIn, useSession } from 'next-auth/react';
+import LoadingAnimation from '../../components/LoadingAnimation';
 
 interface EmotionData {
   Anger: number;
@@ -27,14 +30,19 @@ export default function CreatePlaylist() {
   const [isCapturing, setIsCapturing] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [emotionData, setEmotionData] = useState<EmotionData | null>(null);
-  const [playlistLink, setPlaylistLink] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [playlistUrl, setPlaylistUrl] = useState('');
+  const { data: session } = useSession();
   const playlistSectionRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const captureImages = async () => {
     try {
+      // Reset previous results
+      setEmotionData(null);
+      setPlaylistUrl('');
+      
       setIsCapturing(true);
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
       if (videoRef.current) {
@@ -84,18 +92,40 @@ export default function CreatePlaylist() {
     }
   };
 
+  const emotionColors: { [key: string]: string } = {
+    Joy: 'bg-yellow-500',
+    Excitement: 'bg-red-500',
+    Satisfaction: 'bg-green-500',
+    Calm: 'bg-blue-400',
+    Awe: 'bg-purple-500',
+    Nostalgia: 'bg-amber-500',
+    Relief: 'bg-teal-500',
+    Surprise: 'bg-pink-500',
+    Anxiety: 'bg-indigo-500',
+    Fear: 'bg-slate-600',
+    Anger: 'bg-red-600',
+    Sad: 'bg-blue-600',
+    Horror: 'bg-gray-800',
+    Confusion: 'bg-violet-500',
+    Disgust: 'bg-emerald-600',
+    Bored: 'bg-orange-500'
+  };
+
   // Auto-scroll effect when playlist is generated
   useEffect(() => {
-    if (playlistLink && playlistSectionRef.current) {
+    if (playlistUrl && playlistSectionRef.current) {
       playlistSectionRef.current.scrollIntoView({ 
         behavior: 'smooth',
         block: 'center'
       });
     }
-  }, [playlistLink]);
+  }, [playlistUrl]);
 
   return (
     <main className="min-h-screen bg-white">
+      {/* Loading bar */}
+      {(isCapturing || isProcessing || isGenerating) && <LoadingAnimation />}
+      
       {/* Header with gradient background */}
       <div className="w-full bg-gradient-to-r from-indigo-600 via-pink-500 to-purple-600 h-2" />
       
@@ -158,7 +188,7 @@ export default function CreatePlaylist() {
                       </div>
                       <div className="h-4 bg-gray-200 rounded-full overflow-hidden">
                         <div
-                          className={`h-full rounded-full emotion-bar bg-gradient-to-r from-indigo-600 via-pink-500 to-purple-600`}
+                          className={`h-full rounded-full emotion-bar ${emotionColors[emotion]}`}
                           style={{ '--target-width': `${value * 100}%` } as { [key: string]: string }}
                         />
                       </div>
@@ -173,13 +203,30 @@ export default function CreatePlaylist() {
         <section className="mb-12">
           <div className="flex justify-center">
             <button
-              onClick={() => {
+              onClick={async () => {
+                if (!session) {
+                  signIn('spotify');
+                  return;
+                }
+
+                if (!emotionData) {
+                  alert('Please capture your mood first!');
+                  return;
+                }
+
                 setIsGenerating(true);
-                // Simulate playlist generation
-                setTimeout(() => {
+                try {
+                  const result = await createEmotionBasedPlaylist(
+                    session.accessToken as string,
+                    emotionData
+                  );
+                  setPlaylistUrl(result.playlistUrl);
+                } catch (error) {
+                  console.error('Error creating playlist:', error);
+                  alert('Failed to create playlist. Please try again.');
+                } finally {
                   setIsGenerating(false);
-                  setPlaylistLink('https://open.spotify.com/playlist/37i9dQZF1DX2czWA9hqErK');
-                }, 10000);
+                }
               }}
               disabled={isGenerating || !emotionData}
               className={`flex items-center gap-2 px-8 py-4 rounded-full text-white font-semibold
@@ -199,17 +246,17 @@ export default function CreatePlaylist() {
         </section>
 
         {/* Playlist Link Section */}
-        {playlistLink && (
+        {playlistUrl && (
           <section ref={playlistSectionRef} className="mb-12">
-            <div className="bg-gray-50 rounded-lg p-6 shadow-lg text-center animate-fade-in">
+            <div className="text-center">
               <h3 className="text-2xl font-bold mb-4 bg-gradient-to-r from-indigo-600 via-pink-500 to-purple-600 bg-clip-text text-transparent">
                 Your Playlist is Ready!
               </h3>
               <a
-                href={playlistLink}
+                href={playlistUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 text-indigo-600 hover:text-indigo-700 font-medium"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-[#1DB954] text-white rounded-full hover:bg-[#1ed760] transition-colors"
               >
                 <FaSpotify className="text-xl" />
                 Open in Spotify
